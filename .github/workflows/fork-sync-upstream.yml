@@ -1,0 +1,33 @@
+name: fork-sync-upstream
+
+on:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: fork-sync-upstream
+
+jobs:
+  merge-upstream:
+    if: github.repository == 'RyanHirsch/CLIProxyAPI'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+      - name: Merge upstream main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch https://github.com/router-for-me/CLIProxyAPI.git main
+          if ! git merge --no-edit FETCH_HEAD; then
+            git diff --name-only --diff-filter=U | sed 's/^/::error::Merge conflict in /'
+            exit 1
+          fi
+          git push origin HEAD:main

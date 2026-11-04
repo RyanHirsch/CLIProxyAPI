@@ -1,0 +1,12 @@
+# Merged automatically by `docker compose` on a dev machine so that
+# `docker compose build && docker compose push` produces the NAS image.
+# Do not copy this file to the NAS; it only needs compose.yaml and .env.
+services:
+  cli-api-proxy:
+    build:
+      context: ../..
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-none}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    platform: linux/amd64
