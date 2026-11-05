@@ -24,10 +24,11 @@ fi
 VERSION="$(git describe --tags --always)"
 COMMIT="$(git rev-parse --short HEAD)"
 BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-export VERSION COMMIT BUILD_DATE
 
 trap 'git -C ../.. checkout --quiet -- internal/registry/models' EXIT
 (cd ../.. && bash .github/scripts/refresh-model-catalogs.sh)
+docker build --platform linux/amd64 --tag cli-proxy-api-upstream:local \
+	--build-arg VERSION="$VERSION" --build-arg COMMIT="$COMMIT" --build-arg BUILD_DATE="$BUILD_DATE" ../..
 MANAGEMENT_PASSWORD=build-only docker compose build cli-api-proxy
 MANAGEMENT_PASSWORD=build-only docker compose push cli-api-proxy
 

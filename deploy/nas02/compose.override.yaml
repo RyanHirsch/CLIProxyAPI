@@ -5,8 +5,5 @@ services:
   cli-api-proxy:
     build:
       context: ../..
-      args:
-        VERSION: ${VERSION:-dev}
-        COMMIT: ${COMMIT:-none}
-        BUILD_DATE: ${BUILD_DATE:-unknown}
+      dockerfile: deploy/nas02/Dockerfile
     platform: linux/amd64
