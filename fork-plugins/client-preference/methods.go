@@ -70,9 +70,15 @@ func pluginRegistration() registration {
 		SchemaVersion: pluginabi.SchemaVersion,
 		Metadata: pluginapi.Metadata{
 			Name:             "client-preference",
-			Version:          "0.1.0",
+			Version:          "0.2.0",
 			Author:           "RyanHirsch",
 			GitHubRepository: "https://github.com/RyanHirsch/CLIProxyAPI",
+			ConfigFields: []pluginapi.ConfigField{{
+				Name:        "preferences",
+				Type:        pluginapi.ConfigFieldTypeArray,
+				Default:     []any{},
+				Description: "Ordered rules, first match wins. Each rule is an object with client-key (a client API key) and auth-ids (credential IDs to prefer, in order). Requests use normal routing when no listed credential is available.",
+			}},
 		},
 	}
 	reg.Capabilities.Scheduler = true
