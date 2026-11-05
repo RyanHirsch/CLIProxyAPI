@@ -5,12 +5,12 @@ FROM golang:1.26-bookworm AS plugins
 WORKDIR /src
 
 COPY go.mod go.sum ./
-COPY fork-plugins/client-preference/go.mod fork-plugins/client-preference/go.sum fork-plugins/client-preference/
-RUN cd fork-plugins/client-preference && go mod download
+COPY fork-plugins/account-routing/go.mod fork-plugins/account-routing/go.sum fork-plugins/account-routing/
+RUN cd fork-plugins/account-routing && go mod download
 
 COPY . .
-RUN cd fork-plugins/client-preference && CGO_ENABLED=1 go build -buildvcs=false -buildmode=c-shared -o /out/client-preference.so .
+RUN cd fork-plugins/account-routing && CGO_ENABLED=1 go build -buildvcs=false -buildmode=c-shared -o /out/account-routing.so .
 
 FROM cli-proxy-api-upstream:local
 
-COPY --from=plugins /out/client-preference.so /CLIProxyAPI/plugins/client-preference.so
+COPY --from=plugins /out/account-routing.so /CLIProxyAPI/plugins/account-routing.so

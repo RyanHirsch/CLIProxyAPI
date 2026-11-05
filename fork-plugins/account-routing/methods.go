@@ -78,8 +78,8 @@ func pluginRegistration() registration {
 	reg := registration{
 		SchemaVersion: pluginabi.SchemaVersion,
 		Metadata: pluginapi.Metadata{
-			Name:             "client-preference",
-			Version:          "0.3.0",
+			Name:             "account-routing",
+			Version:          "0.4.0",
 			Author:           "RyanHirsch",
 			GitHubRepository: "https://github.com/RyanHirsch/CLIProxyAPI",
 			ConfigFields: []pluginapi.ConfigField{{

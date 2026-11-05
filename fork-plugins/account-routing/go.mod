@@ -1,4 +1,4 @@
-module github.com/RyanHirsch/CLIProxyAPI/fork-plugins/client-preference
+module github.com/RyanHirsch/CLIProxyAPI/fork-plugins/account-routing
 
 go 1.26.10
 
