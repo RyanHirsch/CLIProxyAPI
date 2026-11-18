@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"time"
 
@@ -9,15 +10,11 @@ import (
 )
 
 const (
-	queueCapacity = 10000
-	maxBatchRows  = 200
-	flushInterval = 5 * time.Second
+	queueCapacity   = 500
+	maxBatchRows    = 200
+	maxRetainedRows = 500
+	flushInterval   = 5 * time.Second
 )
-
-type tableRow struct {
-	table string
-	row   any
-}
 
 type rowQueue struct {
 	target   atomic.Pointer[clickhouseTarget]
@@ -52,22 +49,22 @@ func (q *rowQueue) run() {
 	ticker := time.NewTicker(flushInterval)
 	defer ticker.Stop()
 	var schemaReadyFor clickhouseTarget
-	batch := map[string][]any{}
-	pending := 0
+	pending := newBatch()
 	flush := func() {
-		if pending == 0 {
+		if pending.rows == 0 {
 			return
 		}
-		schemaReadyFor = q.flush(batch, schemaReadyFor)
-		batch = map[string][]any{}
-		pending = 0
+		schemaReadyFor = q.flush(pending, schemaReadyFor)
+		if pending.rows > maxRetainedRows {
+			log.Warnf("clickhouse-log: still unreachable, dropped %d retained rows", pending.rows)
+			pending.clear()
+		}
 	}
 	for {
 		select {
 		case r := <-q.rows:
-			batch[r.table] = append(batch[r.table], r.row)
-			pending++
-			if pending >= maxBatchRows {
+			pending.add(r)
+			if pending.rows >= maxBatchRows && !pending.retrying {
 				flush()
 			}
 		case <-ticker.C:
@@ -76,8 +73,7 @@ func (q *rowQueue) run() {
 			for drained := false; !drained; {
 				select {
 				case r := <-q.rows:
-					batch[r.table] = append(batch[r.table], r.row)
-					pending++
+					pending.add(r)
 				default:
 					drained = true
 				}
@@ -89,22 +85,38 @@ func (q *rowQueue) run() {
 	}
 }
 
-func (q *rowQueue) flush(batch map[string][]any, schemaReadyFor clickhouseTarget) clickhouseTarget {
+func (q *rowQueue) flush(pending *batch, schemaReadyFor clickhouseTarget) clickhouseTarget {
 	target := q.target.Load()
 	if target == nil || target.URL == "" {
+		pending.clear()
 		return schemaReadyFor
 	}
 	ctx := context.Background()
 	if *target != schemaReadyFor {
 		if errSchema := target.ensureSchema(ctx); errSchema != nil {
-			log.Warnf("clickhouse-log: create schema failed, dropped batch: %v", errSchema)
+			if errors.Is(errSchema, errUnreachable) {
+				pending.retrying = true
+				log.Warnf("clickhouse-log: create schema failed, will retry %d rows: %v", pending.rows, errSchema)
+				return schemaReadyFor
+			}
+			log.Warnf("clickhouse-log: create schema failed, dropped %d rows: %v", pending.rows, errSchema)
+			pending.clear()
 			return schemaReadyFor
 		}
 		schemaReadyFor = *target
 	}
-	for table, rows := range batch {
-		if errInsert := target.insert(ctx, table, rows); errInsert != nil {
-			log.Warnf("clickhouse-log: insert %d %s rows failed: %v", len(rows), table, errInsert)
+	pending.retrying = false
+	for table, rows := range pending.tables {
+		errInsert := target.insert(ctx, table, rows)
+		switch {
+		case errInsert == nil:
+			pending.remove(table)
+		case errors.Is(errInsert, errUnreachable):
+			pending.retrying = true
+			log.Warnf("clickhouse-log: insert %d %s rows failed, will retry: %v", len(rows), table, errInsert)
+		default:
+			pending.remove(table)
+			log.Warnf("clickhouse-log: insert %d %s rows failed, dropped: %v", len(rows), table, errInsert)
 		}
 	}
 	return schemaReadyFor

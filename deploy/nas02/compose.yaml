@@ -33,12 +33,14 @@ services:
       CLICKHOUSE_USER: cliproxy
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD must be set}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 0
+      CLICKHOUSE_READER_PASSWORD: ${CLICKHOUSE_READER_PASSWORD:?CLICKHOUSE_READER_PASSWORD must be set}
     ulimits:
       nofile:
         soft: 262144
         hard: 262144
     volumes:
       - clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse-reader.xml:/etc/clickhouse-server/users.d/reader.xml:ro
 
 volumes:
   clickhouse-data:

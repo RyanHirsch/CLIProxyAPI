@@ -29,7 +29,9 @@ trap 'git -C ../.. checkout --quiet -- internal/registry/models' EXIT
 (cd ../.. && bash .github/scripts/refresh-model-catalogs.sh)
 docker build --platform linux/amd64 --tag cli-proxy-api-upstream:local \
 	--build-arg VERSION="$VERSION" --build-arg COMMIT="$COMMIT" --build-arg BUILD_DATE="$BUILD_DATE" ../..
-build_only_compose() { MANAGEMENT_PASSWORD=build-only CLICKHOUSE_PASSWORD=build-only docker compose "$@"; }
+build_only_compose() {
+	MANAGEMENT_PASSWORD=build-only CLICKHOUSE_PASSWORD=build-only CLICKHOUSE_READER_PASSWORD=build-only docker compose "$@"
+}
 build_only_compose build cli-api-proxy
 build_only_compose push cli-api-proxy
 
@@ -40,7 +42,7 @@ verify() {
 		nas_compose logs --no-log-prefix cli-api-proxy | grep -q "Commit: $COMMIT,"
 }
 
-for file in compose.yaml tailscale-serve.json; do
+for file in compose.yaml tailscale-serve.json clickhouse-reader.xml; do
 	ssh "$nas" "cat > $deploy_dir/$file" < "$file"
 done
 ssh "$nas" "$nas_docker image tag $nas_image $nas_image:previous 2>/dev/null || true"

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,6 +22,8 @@ type clickhouseTarget struct {
 }
 
 const retentionDays = 90
+
+var errUnreachable = errors.New("clickhouse unreachable")
 
 var schemaStatements = []string{
 	`CREATE TABLE IF NOT EXISTS %[1]s.prompts (
@@ -116,7 +119,7 @@ func (t clickhouseTarget) exec(ctx context.Context, query string, body io.Reader
 	}
 	resp, errDo := http.DefaultClient.Do(req)
 	if errDo != nil {
-		return errDo
+		return fmt.Errorf("%w: %w", errUnreachable, errDo)
 	}
 	defer func() {
 		if errClose := resp.Body.Close(); errClose != nil {
