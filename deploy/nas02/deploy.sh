@@ -29,8 +29,9 @@ trap 'git -C ../.. checkout --quiet -- internal/registry/models' EXIT
 (cd ../.. && bash .github/scripts/refresh-model-catalogs.sh)
 docker build --platform linux/amd64 --tag cli-proxy-api-upstream:local \
 	--build-arg VERSION="$VERSION" --build-arg COMMIT="$COMMIT" --build-arg BUILD_DATE="$BUILD_DATE" ../..
-MANAGEMENT_PASSWORD=build-only docker compose build cli-api-proxy
-MANAGEMENT_PASSWORD=build-only docker compose push cli-api-proxy
+build_only_compose() { MANAGEMENT_PASSWORD=build-only CLICKHOUSE_PASSWORD=build-only docker compose "$@"; }
+build_only_compose build cli-api-proxy
+build_only_compose push cli-api-proxy
 
 nas_compose() { ssh "$nas" "cd $deploy_dir && $nas_docker compose $*"; }
 
